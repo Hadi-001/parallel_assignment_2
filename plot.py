@@ -14,6 +14,7 @@ GRID_SIZES = [4, 8, 16]
 THREAD_COUNTS = [2, 4, 8, 16, 32]
 
 ACTION_NAMES = ["Up", "Down", "Left", "Right"]
+GOAL_MODE = os.getenv("GOAL_MODE", "edge")
 
 
 def csv_path(name):
@@ -54,6 +55,31 @@ def load_timing(filename):
 def running_average(data, window=50):
     cumsum = np.cumsum(np.insert(data, 0, 0))
     return (cumsum[window:] - cumsum[:-window]) / window
+
+
+def get_plot_config(gs):
+    configs = {
+        4:  {'goal': 15, 'trap': 12, 'obstacles': {2, 5}},
+        8:  {'goal': 63, 'trap': 56, 'obstacles': {10, 21, 42, 53}},
+        16: {'goal': 255, 'trap': 240, 'obstacles': {18, 37, 74, 93, 122, 157, 198, 221}},
+    }
+    cfg = configs[gs].copy()
+    cfg['obstacles'] = set(cfg['obstacles'])
+
+    if GOAL_MODE == "center":
+        center = (gs // 2) * gs + (gs // 2)
+        if center not in cfg['obstacles']:
+            cfg['goal'] = center
+        if cfg['trap'] == cfg['goal'] or cfg['trap'] in cfg['obstacles']:
+            fallback = gs * (gs - 1)
+            if fallback != cfg['goal'] and fallback not in cfg['obstacles']:
+                cfg['trap'] = fallback
+            else:
+                for s in range(gs * gs):
+                    if s != cfg['goal'] and s not in cfg['obstacles']:
+                        cfg['trap'] = s
+                        break
+    return cfg
 
 
 def plot_avg_reward_per_episode():
@@ -185,16 +211,23 @@ def plot_execution_time_comparison():
             else:
                 colors.append('#e74c3c')
 
-        bars = ax.bar(labels, times, color=colors, edgecolor='white', width=0.6)
-        max_time = max(times) if times else 0.0
+        max_time_sec = max(times) if times else 0.0
+        # If times are tiny, plot in milliseconds for readability.
+        use_ms = max_time_sec < 0.01
+        scale = 1000.0 if use_ms else 1.0
+        times_plot = [t * scale for t in times]
+
+        bars = ax.bar(labels, times_plot, color=colors, edgecolor='white', width=0.6)
+        max_time = max(times_plot) if times_plot else 0.0
         label_offset = max(max_time * 0.015, 0.00003)
         ax.set_ylim(0, max_time * 1.12 if max_time > 0 else 1.0)
 
-        for bar, t in zip(bars, times):
+        for bar, t_plot in zip(bars, times_plot):
+            label = f'{t_plot:.3f} ms' if use_ms else f'{t_plot:.6f} s'
             ax.text(bar.get_x() + bar.get_width() / 2.0, bar.get_height() + label_offset,
-                    f'{t:.4f}s', ha='center', va='bottom', fontsize=9)
+                    label, ha='center', va='bottom', fontsize=9)
 
-        ax.set_ylabel('Execution Time (seconds)', fontsize=12)
+        ax.set_ylabel('Execution Time (ms)' if use_ms else 'Execution Time (seconds)', fontsize=12)
         ax.set_title(f'Execution Time Comparison - {gs}x{gs} Grid', fontsize=14)
         ax.grid(True, alpha=0.3, axis='y')
         plt.xticks(rotation=45, ha='right')
@@ -235,6 +268,8 @@ def plot_speedup():
         all_x = sorted(set(omp_threads + mpi_procs))
         if all_x:
             ax.plot(all_x, all_x, 'k--', alpha=0.4, label='Ideal (linear)')
+            ax.plot(all_x, [1.0] * len(all_x), 'b-.', alpha=0.8, linewidth=1.8,
+                    label='Sequential baseline')
 
         if omp_threads:
             ax.plot(omp_threads, omp_speedups, 'go-', linewidth=2, markersize=8, label='OpenMP')
@@ -256,12 +291,6 @@ def plot_speedup():
 def plot_policy_grids():
     """Plot 5: Visual grid showing policy arrows for each method (small grids only)."""
     arrow_map = {0: '\u2191', 1: '\u2193', 2: '\u2190', 3: '\u2192'}
-    configs = {
-        4:  {'goal': 15, 'trap': 12, 'obstacles': {2, 5}},
-        8:  {'goal': 63, 'trap': 56, 'obstacles': {10, 21, 42, 53}},
-        16: {'goal': 255, 'trap': 240, 'obstacles': {18, 37, 74, 93, 122, 157, 198, 221}},
-    }
-
     for gs in [4, 8, 16]:
         methods = {}
         seq_file = csv_path(f"sequential_{gs}x{gs}_policy.csv")
@@ -283,7 +312,7 @@ def plot_policy_grids():
         if not methods:
             continue
 
-        cfg = configs[gs]
+        cfg = get_plot_config(gs)
 
         fig, axes = plt.subplots(1, len(methods), figsize=(5 * len(methods), 5))
         if len(methods) == 1:

@@ -8,6 +8,8 @@ echo ""
 
 # Number of independent runs to average (default: 10)
 RUNS=${1:-10}
+GOAL_MODE=${2:-edge}
+export GOAL_MODE
 
 # Build
 echo ">>> Building all executables..."
@@ -22,6 +24,7 @@ mkdir -p output results
 THREAD_COUNTS="2 4 8 16 32"
 
 echo ">>> Averaging over $RUNS independent runs per configuration"
+echo ">>> Goal mode: $GOAL_MODE (edge|center)"
 echo ""
 
 # ---- Sequential ----
@@ -63,4 +66,5 @@ echo "  All done!"
 echo "  CSV data   -> output/"
 echo "  Plots      -> results/"
 echo "  Averaged runs per setup: $RUNS"
+echo "  Goal mode: $GOAL_MODE"
 echo "============================================"

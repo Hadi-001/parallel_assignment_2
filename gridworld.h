@@ -69,6 +69,9 @@ typedef struct {
 
 static inline void get_grid_config(int grid_size, GridConfig *cfg) {
     int N = grid_size * grid_size;
+    const char *goal_mode = getenv("GOAL_MODE");
+    int center_is_obstacle = 0;
+    int trap_is_obstacle = 0;
     cfg->size = grid_size;
 
     if (grid_size == 4) {
@@ -94,6 +97,51 @@ static inline void get_grid_config(int grid_size, GridConfig *cfg) {
         cfg->num_obstacles = 0;
         cfg->goal = N - 1;
         cfg->trap = N - grid_size;
+    }
+
+    if (goal_mode != NULL && strcmp(goal_mode, "center") == 0) {
+        int center = (grid_size / 2) * grid_size + (grid_size / 2);
+        for (int i = 0; i < cfg->num_obstacles; i++) {
+            if (cfg->obstacles[i] == center) {
+                center_is_obstacle = 1;
+                break;
+            }
+        }
+        if (!center_is_obstacle) {
+            cfg->goal = center;
+        }
+
+        for (int i = 0; i < cfg->num_obstacles; i++) {
+            if (cfg->obstacles[i] == cfg->trap) {
+                trap_is_obstacle = 1;
+                break;
+            }
+        }
+        if (cfg->trap == cfg->goal || trap_is_obstacle) {
+            cfg->trap = N - grid_size; /* bottom-left fallback */
+        }
+        trap_is_obstacle = 0;
+        for (int i = 0; i < cfg->num_obstacles; i++) {
+            if (cfg->obstacles[i] == cfg->trap) {
+                trap_is_obstacle = 1;
+                break;
+            }
+        }
+        if (cfg->trap == cfg->goal || trap_is_obstacle) {
+            for (int s = 0; s < N; s++) {
+                int s_is_obstacle = 0;
+                for (int i = 0; i < cfg->num_obstacles; i++) {
+                    if (cfg->obstacles[i] == s) {
+                        s_is_obstacle = 1;
+                        break;
+                    }
+                }
+                if (s != cfg->goal && !s_is_obstacle) {
+                    cfg->trap = s;
+                    break;
+                }
+            }
+        }
     }
 }
 
