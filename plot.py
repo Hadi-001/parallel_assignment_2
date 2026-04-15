@@ -186,8 +186,12 @@ def plot_execution_time_comparison():
                 colors.append('#e74c3c')
 
         bars = ax.bar(labels, times, color=colors, edgecolor='white', width=0.6)
+        max_time = max(times) if times else 0.0
+        label_offset = max(max_time * 0.015, 0.00003)
+        ax.set_ylim(0, max_time * 1.12 if max_time > 0 else 1.0)
+
         for bar, t in zip(bars, times):
-            ax.text(bar.get_x() + bar.get_width() / 2., bar.get_height() + 0.001,
+            ax.text(bar.get_x() + bar.get_width() / 2.0, bar.get_height() + label_offset,
                     f'{t:.4f}s', ha='center', va='bottom', fontsize=9)
 
         ax.set_ylabel('Execution Time (seconds)', fontsize=12)
