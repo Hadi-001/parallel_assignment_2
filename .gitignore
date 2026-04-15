@@ -1,0 +1,13 @@
+output/
+results/
+
+sequential
+openmp_rl
+mpi_rl
+
+*.o
+*.out
+*.log
+*.csv
+
+.DS_Store
