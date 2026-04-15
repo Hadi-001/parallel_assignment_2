@@ -262,7 +262,7 @@ def plot_policy_grids():
         16: {'goal': 255, 'trap': 240, 'obstacles': {18, 37, 74, 93, 122, 157, 198, 221}},
     }
 
-    for gs in [4, 8]:
+    for gs in [4, 8, 16]:
         methods = {}
         seq_file = csv_path(f"sequential_{gs}x{gs}_policy.csv")
         if os.path.exists(seq_file):
